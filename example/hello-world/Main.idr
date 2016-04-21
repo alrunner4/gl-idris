@@ -6,7 +6,6 @@ import Graphics.Rendering.Gl.Gl41
 import Graphics.Rendering.Gl
 import Graphics.Util.Glfw
 import Graphics.Rendering.Config
-import Data.Floats
 
 %include C "GL/glew.h"
 %flag C "-Wno-pointer-sign"

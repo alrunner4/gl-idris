@@ -5,6 +5,7 @@ import Control.Monad.Identity
 import Data.SortedMap as M
 
 import Lightyear
+import Lightyear.Char
 import Lightyear.Combinators
 import Lightyear.Strings
 
@@ -21,7 +22,7 @@ uv u v = [u, v]
 Index : Type
 Index = (Int, Int, Int)                  
 
-abstract
+export
 data ObjLine
   = Position Vec3
   | TextureCoord Vec2
@@ -31,7 +32,7 @@ data ObjLine
   | Ignored String
   
   
-instance Show ObjLine where
+Show ObjLine where
   show (Position v)       = "Position " ++ (show v)
   show (TextureCoord uv)  = "TextureCoord " ++ (show uv)
   show (Normal v)         = "Normal " ++ (show v)
@@ -41,11 +42,11 @@ instance Show ObjLine where
   
 -- ------------------------------------------------------------------ [ Tokens ]
 
-notEol : Monad m => ParserT m String Char
+notEol : Monad m => ParserT String m Char
 notEol = satisfy (\s => not (isNL s))
 
-eol : Monad m => ParserT m String Char
-eol = satisfy (\s => not (isNL s))
+eol : Monad m => ParserT String m Char
+eol = satisfy isNL
 
 -- ---------------------------------------------------------- [ Double Parser ]
 -- borrowed wholesale from https://github.com/ziman/lightyear/blob/master/examples/Json.idr
@@ -55,7 +56,7 @@ record Scientific where
   coefficient : Integer
   exponent : Integer
 
-scientificToFloat : Scientific -> Float
+scientificToFloat : Scientific -> Double
 scientificToFloat (MkScientific c e) = fromInteger c * exp
   where exp = if e < 0 then 1 / pow 10 (fromIntegerNat (- e))
                        else pow 10 (fromIntegerNat e)
@@ -64,7 +65,7 @@ parseScientific : Parser Scientific
 parseScientific = do sign <- maybe 1 (const (-1)) `map` opt (char '-')
                      digits <- some digit
                      hasComma <- isJust `map` opt (char '.')
-                     decimals <- if hasComma then some digit else pure Prelude.List.Nil
+                     decimals <- if hasComma then some digit else pure Nil
                      hasExponent <- isJust `map` opt (char 'e')
                      exponent <- if hasExponent then integer else pure 0
                      pure $ MkScientific (sign * fromDigits (digits ++ decimals))
@@ -129,25 +130,25 @@ parseLine input = case parse line input of
   Right x => [x]
   
 processLines : List ObjLine -> (List Vec3, List Vec3, List Vec2, List Index)
-processLines lines = processLines' lines [] [] [] []
-                   where processLines' : List ObjLine
-                                       -> List Vec3 -- positions
-                                       -> List Vec3 -- normals
-                                       -> List Vec2     -- UVs / TextureCoordinates
-                                       -> List Index -- indices
-                                       -> (List Vec3, List Vec3, List Vec2, List Index)
-                         processLines' []         pos norm uvs ind = (reverse pos, reverse norm, reverse uvs, reverse ind)
-                         processLines' (l :: ls)  pos norm uvs ind = case l of
-                           Position v      => processLines' ls (v :: pos)       norm        uvs                     ind 
-                           Normal v        => processLines' ls       pos  (v :: norm)       uvs                     ind 
-                           TextureCoord uv => processLines' ls       pos        norm (uv :: uvs)                    ind 
-                           Face i1 i2 i3   => processLines' ls       pos        norm        uvs  (i1 :: i2 :: i3 :: ind)
-                           _               => processLines' ls       pos        norm        uvs                     ind
+processLines lines = processLines' lines [] [] [] [] where
+  processLines' : List ObjLine
+               -> List Vec3 -- positions
+               -> List Vec3 -- normals
+               -> List Vec2     -- UVs / TextureCoordinates
+               -> List Index -- indices
+               -> (List Vec3, List Vec3, List Vec2, List Index)
+  processLines' []        pos norm uvs ind = (reverse pos, reverse norm, reverse uvs, reverse ind)
+  processLines' (l :: ls) pos norm uvs ind = case l of
+    Position v      => processLines' ls (v :: pos)       norm        uvs                     ind 
+    Normal v        => processLines' ls       pos  (v :: norm)       uvs                     ind 
+    TextureCoord uv => processLines' ls       pos        norm (uv :: uvs)                    ind 
+    Face i1 i2 i3   => processLines' ls       pos        norm        uvs  (i1 :: i2 :: i3 :: ind)
+    _               => processLines' ls       pos        norm        uvs                     ind
       
                                                                   
                                                                                                                               
 mapByIndex : List a -> M.SortedMap Int a
-mapByIndex xs = mapByIndex' (cast $ (length xs) - 1) empty (reverse xs)
+mapByIndex xs = mapByIndex' (cast (length xs) - 1) empty (reverse xs)
                 where mapByIndex' : Int -> SortedMap Int a -> List a -> SortedMap Int a
                       mapByIndex' _ s        [] = s
                       mapByIndex' i s (x :: xs) = mapByIndex' (i-1) (insert i x s) xs
@@ -191,7 +192,7 @@ processFace : List Index
 processFace []         _ _ _  _   indices vData buffer = (reverse buffer, (map snd $ toList vData))
 processFace (f::faces)  p n t cnt indices vData buffer = case (lookup f indices) of
   Just i  => processFace faces p n t cnt indices vData (i :: buffer)
-  Nothing => case (getData f p n t ) of
+  Nothing => case (getData f p n t) of
     Just vd => processFace faces p n t (cnt+1) (insert f cnt indices) (insert cnt vd vData) (cnt :: buffer)
     Nothing => processFace faces p n t cnt indices vData buffer -- ignore face: should not be possible
 
@@ -203,25 +204,27 @@ computeModel objLines =
     mappedPositions  = mapByIndex positions  -- Map Int Vertex
     mappedNormals    = mapByIndex normals    -- Map Int Vertex
     mappedUvs        = mapByIndex uvs        -- Map Int UV
-    positionIndices = reverse $ map fst indices
+    positionIndices = reverse (map fst indices)
     (posn, vData) = processFace indices mappedPositions mappedNormals mappedUvs 0 M.empty M.empty []
     
     (positions, uvs, norms) = toVects {n=length vData} vData
     
   in UvMesh positions norms uvs posn
 
-public 
+export 
 loadObj : (filename: String) -> IO Mesh
-loadObj fname = do handle <- openFile fname Read
-                   objLines <- parseFile' handle [] 
-                   closeFile handle
-                   pure $ computeModel objLines
-                where
-                   partial
-                   parseFile' : File -> List ObjLine -> IO (List ObjLine)
-                   parseFile' h acc =
-                     do x <- feof h
-                        if not x then do l <- fread h
-                                         parseFile' h ((parseLine l) ++ acc)
-                        else return $ reverse acc
+loadObj fname = do
+    Right handle <- openFile fname Read | Left err => pure ( computeModel [] )
+    objLines <- parseFile' handle []
+    closeFile handle
+    pure ( computeModel objLines )
+  where
+    partial
+    parseFile' : File -> List ObjLine -> IO (List ObjLine)
+    parseFile' h acc = do
+      isEOF <- fEOF h
+      if not isEOF then do
+        Right l <- fGetLine h | Left err => pure (reverse acc)
+        parseFile' h (parseLine l ++ acc)
+      else pure (reverse acc)
                     

@@ -1,5 +1,7 @@
 module Graphics.Rendering.Gl.Types
 
+%access public export
+
 {--
   data C_IntTypes : Type -> Type where
        C_IntChar   : C_IntTypes Char
@@ -69,6 +71,6 @@ GLclampf = Double
 GLsizeiptr : Type
 GLsizeiptr = Int
 
-class GlEnum a where
+interface GlEnum a where
   toGlInt   : a -> Int
 

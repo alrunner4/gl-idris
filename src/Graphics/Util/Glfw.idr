@@ -7,7 +7,7 @@ import Graphics.Rendering.Config
 %include C "gl_idris.h"
 %link C "gl_idris.o"
 
-%access private
+%access export
 
 ||| Glfw Window
 abstract
@@ -17,18 +17,16 @@ data GlfwWindow = Win Ptr
 abstract
 data GlfwMonitor = Monitor Ptr | DefaultMonitor
 
-public 
+
 defaultMonitor : GlfwMonitor
 defaultMonitor = DefaultMonitor
 
-public
 class Flag a where
   toInt   : a -> Int
 
 class Flag a => GlfwConstant a where
   fromInt : Int -> a
 
-public
 data KeyEventTy
   = GLFW_PRESS
   | GLFW_RELEASE
@@ -56,7 +54,6 @@ instance Show KeyEventTy where
   show GLFW_REPEAT  = "GLFW_REPEAT"
 
 -- | Special key is a key not represented in the 32 - 127 printable ASCII range.
-public
 data FunctionKey
   = UNKNOWN
   | GLFW_KEY_ESCAPE
@@ -213,7 +210,6 @@ instance Eq FunctionKey where
 instance Show FunctionKey where
   show k = "Key " ++ (show (toInt k)) 
 
-public
 data GlfwFlags 
   = GLFW_FOCUSED
   | GLFW_ICONIFIED
@@ -327,34 +323,30 @@ instance GlfwConstant Bool where
   fromInt 0     = False
 
 -- GLEW 
-public
 glewInit : IO Int
 glewInit = foreign FFI_C "idr_init_glew" (IO Int) 
 
 
 -- GLFW from here  
 
-public
 glfwInit : IO Bool
 glfwInit = do ret <- foreign FFI_C "glfwInit" (IO Int)
               pure $ if ret == 1 then True else False
 
-public
 glfwWindowHint : GlfwFlags -> Int -> IO ()
 glfwWindowHint flag val = foreign FFI_C "glfwWindowHint" (Int -> Int -> IO ()) (toInt flag) val
 
-public
 glfwGetPrimaryMonitor : IO GlfwMonitor
 glfwGetPrimaryMonitor = do p <- foreign FFI_C "glfwGetPrimaryMonitor" (IO Ptr) 
                            pure $ Monitor p
 
-public 
+
 createWindowSimple : (title: String) -> (width: Int) -> (height: Int) -> IO GlfwWindow
 createWindowSimple title width height = 
   do ptr <- foreign FFI_C "idr_glfw_create_window" (String -> Int -> Int -> IO Ptr) title width height
      pure $ Win ptr
 
-public 
+
 glfwCreateWindow : (title: String) -> (width: Int) -> (height: Int) -> GlfwMonitor -> IO GlfwWindow 
 glfwCreateWindow title width height (Monitor ptr) = 
   do p <- foreign FFI_C "glfwCreateWindow" (Int -> Int -> String -> Ptr -> Ptr -> IO Ptr) width height title ptr prim__null
@@ -363,49 +355,48 @@ glfwCreateWindow title width height DefaultMonitor =
   do p <- foreign FFI_C "glfwCreateWindow" (Int -> Int -> String -> Ptr -> Ptr -> IO Ptr) width height title prim__null prim__null
      pure $ Win p
 
-public 
+
 isWindow : GlfwWindow -> IO Bool
 isWindow (Win ptr) = nullPtr ptr
 
-public 
+
 glfwMakeContextCurrent : GlfwWindow -> IO ()
 glfwMakeContextCurrent (Win ptr) = foreign FFI_C "glfwMakeContextCurrent" (Ptr -> IO()) ptr
 
 
-public 
+
 glfwDestroyWindow : GlfwWindow -> IO ()
 glfwDestroyWindow (Win ptr) = foreign FFI_C "glfwDestroyWindow" (Ptr -> IO()) ptr
 
-public 
+
 glfwTerminate : IO ()
 glfwTerminate  = foreign FFI_C "glfwTerminate" (IO ())
 
-public
 glfwSwapBuffers : GlfwWindow -> IO ()
 glfwSwapBuffers (Win ptr) = foreign FFI_C "glfwSwapBuffers" (Ptr -> IO()) ptr
 
-public 
+
 glfwWaitEvents : IO ()
 glfwWaitEvents = foreign FFI_C "glfwWaitEvents" (IO ())
 
-public 
+
 glfwPollEvents : IO ()
 glfwPollEvents = foreign FFI_C "glfwPollEvents" (IO ())
 
-public 
+
 glfwSetInputMode : GlfwWindow -> GlfwFlags -> Int -> IO ()
 glfwSetInputMode (Win ptr) flag val = foreign FFI_C "glfwSetInputMode" (Ptr -> Int -> Int -> IO ()) ptr (toInt flag) val
 
-public 
+
 glfwGetFunctionKey : GlfwWindow -> FunctionKey -> IO KeyEventTy
 glfwGetFunctionKey (Win ptr) k = do e <- foreign FFI_C "glfwGetKey" (Ptr -> Int -> IO Int) ptr (toInt k)
                                     pure $ fromInt e
-public 
+
 glfwGetKey : GlfwWindow -> Char -> IO KeyEventTy
 glfwGetKey (Win ptr) k = do e <- foreign FFI_C "glfwGetKey" (Ptr -> Int -> IO Int) ptr (ord $ toUpper k)
                             pure $ fromInt e
                         
-public 
+
 glfwWindowShouldClose : GlfwWindow -> IO Bool
 glfwWindowShouldClose (Win ptr) = do flag <- foreign FFI_C "glfwWindowShouldClose" (Ptr -> IO Int) ptr
                                      let bool = if flag == 0 then False else True
@@ -491,7 +482,6 @@ GLFWAPI GLFWglproc glfwGetProcAddress(const char* procname);
 
 --}
 
-public
 glfwSwapInterval : Int -> IO ()
 glfwSwapInterval interval = foreign FFI_C "glfwSwapInterval" (Int -> IO ()) interval
 

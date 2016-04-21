@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = `idris --include` `pkg-config --cflags glew`
+CFLAGS = `idris --include` `pkg-config --cflags glew` `pkg-config --cflags libpng`
 
 gl_idris.o: config gl_idris.c gl_idris.h 
 
@@ -7,7 +7,7 @@ gl_idris.o: config gl_idris.c gl_idris.h
 config: .PHONY
 	echo "%flag C \"`pkg-config --cflags glew `\"" > Graphics/Rendering/Config.idr
 	echo "%flag C \"`pkg-config --libs glew `\"" >> Graphics/Rendering/Config.idr
-	echo "%flag C \"-lpng\"" >> Graphics/Rendering/Config.idr
+	echo "%flag C \"`pkg-config --libs libpng`\"" >> Graphics/Rendering/Config.idr
 	echo "%flag C \"-framework OpenGL\"" >> Graphics/Rendering/Config.idr
 clean: .PHONY
 	rm gl_idris.o

@@ -6,7 +6,7 @@ import public Graphics.Rendering.Gl.Types
 import public Graphics.Rendering.Gl.Gl41
 import public Graphics.Rendering.Gl
 
-%access public 
+%access export 
 
 data GlState : Type where
   GlOn : GlState
@@ -16,7 +16,7 @@ data Gl : Effect where
   WithGl : (GlState -> IO a) -> sig Gl a GlState (\w => GlState)
   Terminate : sig Gl () GlState (\_ => ())
 
-instance Handler Gl IO where
+Handler Gl IO where
   handle () Initialise  k = k () GlOn
   handle GlOn (WithGl f)  k = do r <- f GlOn; k r GlOn
   handle GlOn Terminate   k = k () ()
