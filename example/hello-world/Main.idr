@@ -7,6 +7,8 @@ import Graphics.Rendering.Gl
 import Graphics.Util.Glfw
 import Graphics.Rendering.Config
 
+import System -- exit
+
 %include C "GL/glew.h"
 %flag C "-Wno-pointer-sign"
 
@@ -27,20 +29,22 @@ record Shaders where
   program : Int
 
 
-createShaders : IO Shaders
+createShaders : IO( Maybe Shaders )
 createShaders = do
   glGetError
   vertexShader <- glCreateShader GL_VERTEX_SHADER
 
   showError "create vertex shader "
-  vtx <- readFile "shader.vtx"
+  Right vtx <- readFile "shader.vtx"
+             | Left fileError => ( putStrLn "vertex shader load failed" *> pure Nothing )
   glShaderSource vertexShader 1 [vtx] [(cast $ length vtx)]
   glCompileShader vertexShader
 
   fragmentShader <- glCreateShader GL_FRAGMENT_SHADER
   showError "create fragment shader "
 
-  frg <- readFile "shader.frg"
+  Right frg <- readFile "shader.frg"
+       | Left fileError => ( putStrLn "fragment shader load failed" *> pure Nothing )
   glShaderSource fragmentShader 1 [frg] [(cast $ length frg)]
   glCompileShader fragmentShader
 
@@ -57,7 +61,7 @@ createShaders = do
   printShaderLog vertexShader
   printShaderLog fragmentShader
 
-  pure $ MkShaders vertexShader fragmentShader program
+  pure( Just( MkShaders vertexShader fragmentShader program ) )
 
 
 destroyShaders : Shaders -> IO ()
@@ -176,7 +180,7 @@ main : IO ()
 main = do win <- initDisplay "Hello Idris" 640 480
           glfwSetInputMode win GLFW_STICKY_KEYS 1
           glfwSwapInterval 0
-          shaders <- createShaders
+          Just shaders <- createShaders | Nothing => exit 1
           vao <- createBuffers
           eventLoop $ MkState win vao shaders
           destroyBuffers vao
